@@ -22,7 +22,10 @@ macro(qtvsg_exe exe)
   )
 endmacro()
 
-qtvsg_exe(qtvsgviewer)
+qtvsg_exe(qtvsgviewer
+  qtvsgviewer.cpp
+  mainwindow.cpp
+)
 
 install(TARGETS qtvsgviewer
   RUNTIME DESTINATION bin)
