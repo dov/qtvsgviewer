@@ -7,18 +7,15 @@
 #ifndef MYAPP_H
 #define MYAPP_H
 
-#ifndef _MY_APP_H_
-#define _MY_APP_H_
-
 #include <QApplication>
-#include "MainWindow.h"
+#include "mainwindow.h"
 
 class MyApp : public QApplication
 {
   Q_OBJECT
 
   private:
-    MainWindow m_MainWin;
+    MainWindow *m_mainwindow = nullptr;
 
   public:
     // Constructor

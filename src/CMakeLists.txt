@@ -25,6 +25,8 @@ endmacro()
 qtvsg_exe(qtvsgviewer
   qtvsgviewer.cpp
   mainwindow.cpp
+  myapp.cpp
+  widget3d.cpp
 )
 
 install(TARGETS qtvsgviewer

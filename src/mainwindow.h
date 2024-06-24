@@ -10,6 +10,7 @@
 #include <vsg/all.h>
 #include <vsgQt/Window.h>
 #include <QMainWindow>
+#include "widget3d.h"
 
 class MainWindow : public QMainWindow
 {
@@ -20,14 +21,15 @@ public:
                vsg::ref_ptr<vsg::Options> options,
                QApplication& app);
 
-    vsg::ref_ptr<vsgQt::Viewer> viewer;
-    vsg::ref_ptr<vsg::Trackball> trackball;
+    void updateTrackball(double dx, double dy, double dz,
+                         double xrot, double yrot, double zrot);
 
 private:
     vsgQt::Window* createWindow(vsg::ref_ptr<vsg::WindowTraits> traits,
                                 vsg::ref_ptr<vsg::Node> vsg_scene,
                                 QWindow* parent, const QString& title = {});
 
+    Widget3D* m_widget3d = nullptr;
 };
 
 
