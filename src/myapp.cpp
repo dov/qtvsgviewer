@@ -20,6 +20,8 @@
 #include <fmt/core.h>
 #include "myapp.h"
 
+using namespace std;
+
 // Constructor
 MyApp::MyApp(int argc, char *argv[])
   : QApplication(argc, argv)
@@ -38,8 +40,9 @@ MyApp::MyApp(int argc, char *argv[])
     options->add(vsgXchange::all::create());
 
     arguments.read(options);
+    auto settings = make_shared<QSettings>("qtvsgviewer", "qtvsgviewer");
 
-    auto mainWindow = new MainWindow(arguments, options, *this);
+    auto mainWindow = new MainWindow(arguments, options, settings, *this);
 
     mainWindow->show();
 

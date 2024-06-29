@@ -7,6 +7,10 @@
 
 #include "widget3d.h"
 #include <QVBoxLayout>
+#include <spdlog/spdlog.h>
+#include <fmt/core.h>
+
+using fmt::print;
 
 // A rotation tracking view matrix. It returns the rotation component
 // of another viewMatrix.
@@ -129,7 +133,8 @@ Widget3D::createViewGizmo(vsg::ref_ptr<vsg::Camera> camera,
 Widget3D::Widget3D(QWidget *parent,
                    vsg::ref_ptr<vsg::Node> vsg_scene,
                    vsg::ref_ptr<vsg::WindowTraits> windowTraits)
-  : QWidget(parent)
+  : QWidget(parent),
+    m_scene(vsg_scene)
 {
     auto window = createWindow(windowTraits, vsg_scene);
     m_vsgwidget = QWidget::createWindowContainer(window, this);
@@ -143,6 +148,10 @@ Widget3D::Widget3D(QWidget *parent,
 
     m_viewer->addEventHandler(vsg::CloseHandler::create(m_viewer));
     m_viewer->compile();
+
+    setAcceptDrops(true);
+    setFocusPolicy(Qt::StrongFocus);
+    setFocus(Qt::NoFocusReason);
 }
 
 Widget3D::~Widget3D()
@@ -167,8 +176,8 @@ vsgQt::Window* Widget3D::createWindow(
     // compute the bounds of the scene graph to help position camera
     vsg::ComputeBounds computeBounds;
     vsg_scene->accept(computeBounds);
-    vsg::dvec3 centre = (computeBounds.bounds.min + computeBounds.bounds.max) * 0.5;
-    double radius = vsg::length(computeBounds.bounds.max - computeBounds.bounds.min) * 0.6;
+    m_center = (computeBounds.bounds.min + computeBounds.bounds.max) * 0.5;
+    m_radius = vsg::length(computeBounds.bounds.max - computeBounds.bounds.min) * 0.6;
     double nearFarRatio = 0.001;
 
     uint32_t width = window->traits->width;
@@ -179,8 +188,8 @@ vsgQt::Window* Widget3D::createWindow(
     vsg::ref_ptr<vsg::Camera> camera;
     {
         // set up the camera
-        auto lookAt = vsg::LookAt::create(centre + vsg::dvec3(radius, -radius * 2.5, radius),
-                                          centre, vsg::dvec3(0.0, 0.0, 1.0));
+        auto lookAt = vsg::LookAt::create(m_center + vsg::dvec3(m_radius, -m_radius * 2.5, m_radius),
+                                          m_center, vsg::dvec3(0.0, 0.0, 1.0));
 
         vsg::ref_ptr<vsg::ProjectionMatrix> perspective;
         if (ellipsoidModel)
@@ -194,22 +203,22 @@ vsgQt::Window* Widget3D::createWindow(
             perspective = vsg::Perspective::create(
                 30.0,
                 aspectRatio,
-                nearFarRatio * radius, radius * 4.5);
+                nearFarRatio * m_radius, m_radius * 4.5);
         }
 
         camera = vsg::Camera::create(perspective, lookAt, vsg::ViewportState::create(VkExtent2D{width, height}));
     }
 
-
     m_trackball = vsg::Trackball::create(camera, ellipsoidModel);
     m_trackball->addWindow(*window);
+    autoScale();
 
     m_viewer->addEventHandler(m_trackball);
     auto scene = vsg::StateGroup::create();
     scene->addChild(vsg::createHeadlight());
     scene->addChild(vsg_scene);
 
-    auto commandGraph = vsg::CommandGraph::create(*window);
+    m_commandGraph = vsg::CommandGraph::create(*window);
     auto renderGraph = vsg::RenderGraph::create(*window);
     auto view = vsg::View::create(camera);
     view->addChild(scene);
@@ -218,9 +227,9 @@ vsgQt::Window* Widget3D::createWindow(
 
     renderGraph->addChild(createViewGizmo(camera, aspectRatio));
 
-    commandGraph->addChild(renderGraph);
+    m_commandGraph->addChild(renderGraph);
 
-    m_viewer->addRecordAndSubmitTaskAndPresentation({commandGraph});
+    m_viewer->addRecordAndSubmitTaskAndPresentation({m_commandGraph});
 
     return window;
 }
@@ -238,3 +247,56 @@ void Widget3D::updateTrackball(double dx, double dy, double dz,
   m_viewer->request();
   m_viewer->render();
 }
+
+void Widget3D::compile()
+{
+  m_viewer->compile();
+}
+
+// Setup the camera to match the contents in the m_scene
+void Widget3D::autoScale()
+{
+    vsg::ComputeBounds computeBounds;
+    m_scene->accept(computeBounds);
+    m_center = (computeBounds.bounds.min + computeBounds.bounds.max) * 0.5;
+    m_radius = vsg::length(computeBounds.bounds.max - computeBounds.bounds.min) * 0.6;
+
+    // set up the camera
+    auto lookAt = vsg::LookAt::create(m_center + vsg::dvec3(m_radius, -m_radius * 2.5, m_radius),
+                                      m_center, vsg::dvec3(0.0, 0.0, 1.0));
+
+    m_trackball->setViewpoint(lookAt, 0.1);
+
+    // Setup keybindings for looking from different dirs
+    auto lookAtDiag = vsg::LookAt::create(m_center + vsg::dvec3(m_radius, -m_radius * 2.5, m_radius),
+                                          m_center,
+                                          vsg::dvec3(0.0, 0.0, 1.0));
+    auto lookAtTop = vsg::LookAt::create(m_center + vsg::dvec3(0.0, 0.0, m_radius * 2.5),
+                                         m_center,
+                                         vsg::dvec3(0.0, 1.0, 0.0));
+    auto lookAtFront = vsg::LookAt::create(m_center + vsg::dvec3(0.0, -m_radius * 2.5, 0.0),
+                                           m_center,
+                                           vsg::dvec3(0.0, 0.0, 1.0));
+    auto lookAtRight = vsg::LookAt::create(m_center + vsg::dvec3(m_radius * 2.5, 0.0, 0.0),
+                                           m_center,
+                                           vsg::dvec3(0.0, 0.0, 1.0));
+
+    m_trackball->addKeyViewpoint(vsg::KeySymbol::KEY_f, lookAtDiag, 0.5);
+
+    // Add keybindings for looking from different directions
+    m_trackball->addKeyViewpoint(vsg::KeySymbol::KEY_7, lookAtTop, 0.5);
+    m_trackball->addKeyViewpoint(vsg::KeySymbol::KEY_KP_7, lookAtTop, 0.5);
+    m_trackball->addKeyViewpoint(vsg::KeySymbol::KEY_KP_Home, lookAtTop, 0.5);
+    m_trackball->addKeyViewpoint(vsg::KeySymbol::KEY_Home, lookAtTop, 0.5);
+    
+    m_trackball->addKeyViewpoint(vsg::KeySymbol::KEY_1, lookAtFront, 0.5);
+    m_trackball->addKeyViewpoint(vsg::KeySymbol::KEY_KP_1, lookAtFront, 0.5);
+    m_trackball->addKeyViewpoint(vsg::KeySymbol::KEY_KP_End, lookAtFront, 0.5);
+    m_trackball->addKeyViewpoint(vsg::KeySymbol::KEY_End, lookAtFront, 0.5);
+
+    m_trackball->addKeyViewpoint(vsg::KeySymbol::KEY_3, lookAtRight, 0.5);
+    m_trackball->addKeyViewpoint(vsg::KeySymbol::KEY_KP_3, lookAtRight, 0.5);
+    m_trackball->addKeyViewpoint(vsg::KeySymbol::KEY_KP_Page_Down, lookAtRight, 0.5);
+    m_trackball->addKeyViewpoint(vsg::KeySymbol::KEY_Page_Down, lookAtRight, 0.5);
+}
+

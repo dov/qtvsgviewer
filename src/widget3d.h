@@ -23,6 +23,8 @@ public:
 
     void updateTrackball(double dx, double dy, double dz,
                          double xrot, double yrot, double zrot);
+    void compile();
+    void autoScale();
 
 private:
     vsgQt::Window* createWindow(
@@ -36,6 +38,9 @@ private:
     vsg::ref_ptr<vsg::Node> m_scene;
     vsg::ref_ptr<vsgQt::Viewer> m_viewer;
     vsg::ref_ptr<vsg::Trackball> m_trackball;
+    vsg::ref_ptr<vsg::CommandGraph> m_commandGraph;
+    vsg::dvec3 m_center;
+    double m_radius;
 };
 
 #endif /* WIDGET3D */

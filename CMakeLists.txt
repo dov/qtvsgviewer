@@ -13,6 +13,7 @@ vsg_setup_build_vars()
 find_package(vsgImGui REQUIRED)
 find_package(vsgXchange REQUIRED)
 find_package(vsgQt REQUIRED)
+find_package(spdlog REQUIRED)
 
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_CXX_STANDARD 17)
