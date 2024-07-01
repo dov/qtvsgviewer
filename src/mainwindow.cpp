@@ -42,6 +42,7 @@ MainWindow::MainWindow(vsg::CommandLine& arguments,
     windowTraits->windowTitle = "vsgQt viewer";
     windowTraits->debugLayer = arguments.read({"--debug", "-d"});
     windowTraits->apiDumpLayer = arguments.read({"--api", "-a"});
+    windowTraits->samples = 8;
     arguments.read("--samples", windowTraits->samples);
     arguments.read({"--window", "-w"}, windowTraits->width, windowTraits->height);
     if (arguments.read({"--fullscreen", "--fs"})) windowTraits->fullscreen = true;
@@ -167,7 +168,8 @@ void MainWindow::loadfile(const std::string& filename)
 
     // I don't know why, but read swaps the y and the z-axis. This transform node
     // transforms it back
-    if (filename.find(".stl") != string::npos)
+    if (filename.find(".stl") != string::npos
+        || filename.find(".3mf") != string::npos)
         this->modelContainer->matrix = 
             vsg::dmat4 {{ 1.0f, 0.0f, 0.0f, 0.0f },
                         { 0.0f, 0.0f, -1.0f, 0.0f },

@@ -219,6 +219,9 @@ vsgQt::Window* Widget3D::createWindow(
     scene->addChild(vsg_scene);
 
     m_commandGraph = vsg::CommandGraph::create(*window);
+    vsg::ref_ptr<vsg::Framebuffer> framebuffer;
+    vsg::ImageViews atttachments;
+
     auto renderGraph = vsg::RenderGraph::create(*window);
     auto view = vsg::View::create(camera);
     view->addChild(scene);
