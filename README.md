@@ -1,6 +1,6 @@
 # Intro
 
-A user friendly 3d model viewer based on qt and Vulkan Scene Graph
+A user friendly 3d model viewer based on qt and Vulkan Scene Graph. It is also used as a test bed for me learning VSG.
 
 # Screenshot
 

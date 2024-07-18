@@ -36,7 +36,8 @@ private:
                                 vsg::ref_ptr<vsg::Node> vsg_scene,
                                 QWindow* parent, const QString& title = {});
 
-    void loadfile(const std::string& filename);
+  void loadfile(const std::string& filename,
+                bool changeRotation=true);
 
     Widget3D* m_widget3d = nullptr;
     QTimer *autoloadTimer = nullptr;
@@ -51,6 +52,7 @@ private slots:
     void open();
     void reload();
     void toggleAutoload(bool DoAutoload);
+    void toggleWireframe(bool DoWireframe);
 
 };
 

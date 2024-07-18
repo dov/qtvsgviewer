@@ -24,7 +24,8 @@ public:
     void updateTrackball(double dx, double dy, double dz,
                          double xrot, double yrot, double zrot);
     void compile();
-    void autoScale();
+    void autoScale(bool changeRotation = true);
+    void setWireframeMode(bool wireframe);
 
 private:
     vsgQt::Window* createWindow(
@@ -37,6 +38,7 @@ private:
     QWidget *m_vsgwidget = nullptr;
     vsg::ref_ptr<vsg::Node> m_scene;
     vsg::ref_ptr<vsgQt::Viewer> m_viewer;
+    vsg::ref_ptr<vsg::View> m_view;
     vsg::ref_ptr<vsg::Trackball> m_trackball;
     vsg::ref_ptr<vsg::CommandGraph> m_commandGraph;
     vsg::dvec3 m_center;

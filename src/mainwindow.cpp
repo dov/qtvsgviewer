@@ -1,3 +1,10 @@
+//======================================================================
+// Hold the qt widgets hierarchy with the 3d viewer in the center.
+//
+// Dov Grobgeld <dov.grobgeld@gmail.com>
+// 2024-07-18 Thu
+//----------------------------------------------------------------------
+
 #include <vsg/all.h>
 #include "mainwindow.h"
 #include <vsgXchange/all.h>
@@ -17,6 +24,7 @@
 
 
 using namespace std;
+using fmt::print;
 
 // Returns a timestamp as milliseconds since the epoch. Note this time may jump
 // around subject to adjustments by the system, to measure elapsed time use
@@ -80,7 +88,6 @@ MainWindow::MainWindow(vsg::CommandLine& arguments,
     loadfile(filename);
     m_widget3d = new Widget3D(this, vsg_scene, windowTraits);
     m_widget3d->show();
-    m_widget3d->setFocus();
 
     this->setCentralWidget(m_widget3d);
 
@@ -89,6 +96,13 @@ MainWindow::MainWindow(vsg::CommandLine& arguments,
     viewAutoloadAct->setStatusTip(tr("Toggle autoloading of a file"));
     connect(viewAutoloadAct, SIGNAL(toggled(bool)), this, SLOT(toggleAutoload(bool)));
     viewAutoloadAct->setChecked(m_settings->value("autoload").toBool());
+
+    auto viewWireframeAct = new QAction(tr("View wireframe"), this);
+    viewWireframeAct->setCheckable(true);
+    viewWireframeAct->setStatusTip(tr("Toggle wrieframe"));
+    connect(viewWireframeAct, SIGNAL(toggled(bool)), this, SLOT(toggleWireframe(bool)));
+    viewWireframeAct->setChecked(m_settings->value("wireframe").toBool());
+
 
     auto openAct = new QAction(tr("&Open..."), this);
     openAct->setShortcuts(QKeySequence::Open);
@@ -106,6 +120,7 @@ MainWindow::MainWindow(vsg::CommandLine& arguments,
 
     QMenu *viewMenu = menuBar->addMenu(tr("&View"));
     viewMenu->addAction(viewAutoloadAct);
+    viewMenu->addAction(viewWireframeAct);
 
 
     QObject::connect(quitAction, &QAction::triggered, &app, &QApplication::quit);
@@ -117,6 +132,7 @@ MainWindow::MainWindow(vsg::CommandLine& arguments,
     m_widget3d->compile();
 
     setStatusMessage("Ready");
+    m_widget3d->setFocus();
 }
 
 // Update the trackball with the new values, e.g. from a spnav device
@@ -135,6 +151,13 @@ void MainWindow::toggleAutoload(bool doAutoload)
   m_settings->setValue("autoload", doAutoload);
 }
 
+void MainWindow::toggleWireframe(bool doWireframe)
+{
+  m_widget3d->setWireframeMode(doWireframe);
+
+  m_settings->setValue("wireframe", doWireframe);
+}
+
 void MainWindow::reload()
 {
     // Check if the modified date changed
@@ -146,10 +169,11 @@ void MainWindow::reload()
     wasmodified &= (last_modified < QDateTime::currentDateTime().addMSecs(-100));
 
     if (wasmodified)
-        this->loadfile(this->currentFilename);
+        this->loadfile(this->currentFilename, false);
 }
 
-void MainWindow::loadfile(const std::string& filename)
+void MainWindow::loadfile(const std::string& filename,
+                          bool changeRotation)
 {
     int64_t lf_t0 = GetTimeInMillis();
     // convert a std string to a qString:
@@ -193,7 +217,7 @@ void MainWindow::loadfile(const std::string& filename)
     spdlog::info("Total load file duration = {} ms", GetTimeInMillis()-lf_t0);
     if (m_widget3d) {
         m_widget3d->compile();
-        m_widget3d->autoScale(); // TBD: make this conditional
+        m_widget3d->autoScale(changeRotation); // TBD: make this conditional
     }
 }
 

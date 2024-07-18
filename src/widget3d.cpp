@@ -158,6 +158,76 @@ Widget3D::~Widget3D()
 {
 }
 
+class InsertWireframeSwitch : public vsg::Visitor
+{
+public:
+    std::vector<vsg::Object*> parents;
+    std::set<vsg::Object*> visited;
+    std::map<vsg::BindGraphicsPipeline*, vsg::ref_ptr<vsg::StateSwitch>> pipelineMap;
+    vsg::Mask mask_1 = 0x1;
+    vsg::Mask mask_2 = 0x2;
+
+    void traverse(vsg::Object& object)
+    {
+        parents.push_back(&object);
+        object.traverse(*this);
+        parents.pop_back();
+    }
+
+    void apply(vsg::Object& object) override
+    {
+        traverse(object);
+    }
+
+    vsg::ref_ptr<vsg::GraphicsPipeline> createAlternate(vsg::GraphicsPipeline& pipeline)
+    {
+        auto alternative_pipeline = vsg::GraphicsPipeline::create();
+
+        *alternative_pipeline = pipeline;
+
+        for (auto& pipelineState : alternative_pipeline->pipelineStates)
+        {
+            if (auto rasterizationState = pipelineState.cast<vsg::RasterizationState>())
+            {
+                auto alternate_rasterizationState = vsg::RasterizationState::create(*rasterizationState);
+
+                alternate_rasterizationState->polygonMode = VK_POLYGON_MODE_LINE;
+                pipelineState = alternate_rasterizationState;
+            }
+        }
+        return alternative_pipeline;
+    }
+
+    void apply(vsg::StateGroup& sg) override
+    {
+        if (visited.count(&sg) > 0) return;
+        visited.insert(&sg);
+
+        for (auto& sc : sg.stateCommands)
+        {
+            if (auto bgp = sc->cast<vsg::BindGraphicsPipeline>())
+            {
+                auto& stateSwitch = pipelineMap[bgp];
+
+                if (!stateSwitch)
+                {
+                    stateSwitch = vsg::StateSwitch::create();
+                    stateSwitch->slot = bgp->slot;
+                    stateSwitch->add(mask_1, sc);
+
+                    auto alternate_gp = createAlternate(*(bgp->pipeline));
+                    auto alternate_bgp = vsg::BindGraphicsPipeline::create(alternate_gp);
+
+                    stateSwitch->add(mask_2, alternate_bgp);
+                }
+                sc = stateSwitch;
+            }
+        }
+
+        traverse(sg);
+    }
+};
+
 
 vsgQt::Window* Widget3D::createWindow(
   vsg::ref_ptr<vsg::WindowTraits> windowTraits,
@@ -167,6 +237,18 @@ vsgQt::Window* Widget3D::createWindow(
     m_viewer = vsgQt::Viewer::create();
     auto window = new vsgQt::Window(m_viewer, windowTraits, (QWindow*)nullptr);
 
+    // Insert a wireframe switch. This should perhaps be modified
+    // if using a tray.
+    vsg::Mask mask_1 = 0x1;
+    vsg::Mask mask_2 = 0x2;
+    {
+        InsertWireframeSwitch wireframeVisitor;
+        wireframeVisitor.mask_1 = mask_1;
+        wireframeVisitor.mask_2 = mask_2;
+        vsg_scene->accept(wireframeVisitor);
+    }
+
+    // Turn off the wireframe switch
     window->initializeWindow();
 
     // if this is the first window to be created, use its device for future window creation.
@@ -223,10 +305,11 @@ vsgQt::Window* Widget3D::createWindow(
     vsg::ImageViews atttachments;
 
     auto renderGraph = vsg::RenderGraph::create(*window);
-    auto view = vsg::View::create(camera);
-    view->addChild(scene);
+    m_view = vsg::View::create(camera);
+    m_view->mask = mask_1;
+    m_view->addChild(scene);
 
-    renderGraph->addChild(view);
+    renderGraph->addChild(m_view);
 
     renderGraph->addChild(createViewGizmo(camera, aspectRatio));
 
@@ -257,7 +340,7 @@ void Widget3D::compile()
 }
 
 // Setup the camera to match the contents in the m_scene
-void Widget3D::autoScale()
+void Widget3D::autoScale(bool changeRotation)
 {
     vsg::ComputeBounds computeBounds;
     m_scene->accept(computeBounds);
@@ -268,7 +351,8 @@ void Widget3D::autoScale()
     auto lookAt = vsg::LookAt::create(m_center + vsg::dvec3(m_radius, -m_radius * 2.5, m_radius),
                                       m_center, vsg::dvec3(0.0, 0.0, 1.0));
 
-    m_trackball->setViewpoint(lookAt, 0.1);
+    if (changeRotation)
+        m_trackball->setViewpoint(lookAt, 0.1);
 
     // Setup keybindings for looking from different dirs
     auto lookAtDiag = vsg::LookAt::create(m_center + vsg::dvec3(m_radius, -m_radius * 2.5, m_radius),
@@ -301,5 +385,15 @@ void Widget3D::autoScale()
     m_trackball->addKeyViewpoint(vsg::KeySymbol::KEY_KP_3, lookAtRight, 0.5);
     m_trackball->addKeyViewpoint(vsg::KeySymbol::KEY_KP_Page_Down, lookAtRight, 0.5);
     m_trackball->addKeyViewpoint(vsg::KeySymbol::KEY_Page_Down, lookAtRight, 0.5);
+}
+
+void Widget3D::setWireframeMode(bool wireframe)
+{
+    auto mask = wireframe ? 0x2 : 0x1;
+    m_view->mask = mask;
+
+    m_viewer->update();
+    m_viewer->request();
+    m_viewer->render();
 }
 
