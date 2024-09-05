@@ -17,9 +17,9 @@ macro(qtvsg_exe exe)
     vsgImGui::vsgImGui
     vsgXchange::vsgXchange
     vsgQt
-    Qt6::Core
-    Qt6::Gui
-    Qt6::Widgets
+    Qt5::Core
+    Qt5::Gui
+    Qt5::Widgets
     spnav
     fmt
     spdlog
@@ -42,6 +42,7 @@ qtvsg_exe(qtvsgviewer
   myapp.cpp
   widget3d.cpp
   buildsha1.cpp
+  myqtwindow.cpp
 )
 
 install(TARGETS qtvsgviewer

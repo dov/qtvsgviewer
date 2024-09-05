@@ -20,8 +20,8 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# Uncomment these for Qt6
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets)
-qt_standard_project_setup()
+# Uncomment these for Qt5
+find_package(Qt5 REQUIRED COMPONENTS Core Gui Widgets)
+#qt_standard_project_setup()
 
 subdirs(src)

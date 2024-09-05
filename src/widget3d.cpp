@@ -7,6 +7,7 @@
 
 #include "widget3d.h"
 #include <QVBoxLayout>
+#include "myqtwindow.h"
 #include <spdlog/spdlog.h>
 #include <fmt/core.h>
 
@@ -165,7 +166,7 @@ vsgQt::Window* Widget3D::createWindow(
 
 {
     m_viewer = vsgQt::Viewer::create();
-    auto window = new vsgQt::Window(m_viewer, windowTraits, (QWindow*)nullptr);
+    auto window = new MyVsgQtWindow(m_viewer, windowTraits, (QWindow*)nullptr);
 
     window->initializeWindow();
 
@@ -186,28 +187,27 @@ vsgQt::Window* Widget3D::createWindow(
 
     vsg::ref_ptr<vsg::EllipsoidModel> ellipsoidModel(vsg_scene->getObject<vsg::EllipsoidModel>("EllipsoidModel"));
     vsg::ref_ptr<vsg::Camera> camera;
+
+    // set up the camera
+    auto lookAt = vsg::LookAt::create(m_center + vsg::dvec3(m_radius, -m_radius * 2.5, m_radius),
+                                      m_center, vsg::dvec3(0.0, 0.0, 1.0));
+
+    vsg::ref_ptr<vsg::ProjectionMatrix> perspective;
+    if (ellipsoidModel)
     {
-        // set up the camera
-        auto lookAt = vsg::LookAt::create(m_center + vsg::dvec3(m_radius, -m_radius * 2.5, m_radius),
-                                          m_center, vsg::dvec3(0.0, 0.0, 1.0));
-
-        vsg::ref_ptr<vsg::ProjectionMatrix> perspective;
-        if (ellipsoidModel)
-        {
-            perspective = vsg::EllipsoidPerspective::create(
-                lookAt, ellipsoidModel, 30.0, aspectRatio,
-                nearFarRatio, false);
-        }
-        else
-        {
-            perspective = vsg::Perspective::create(
-                30.0,
-                aspectRatio,
-                nearFarRatio * m_radius, m_radius * 4.5);
-        }
-
-        camera = vsg::Camera::create(perspective, lookAt, vsg::ViewportState::create(VkExtent2D{width, height}));
+        perspective = vsg::EllipsoidPerspective::create(
+            lookAt, ellipsoidModel, 30.0, aspectRatio,
+            nearFarRatio, false);
     }
+    else
+    {
+        perspective = vsg::Perspective::create(
+            30.0,
+            aspectRatio,
+            nearFarRatio * m_radius, m_radius * 4.5);
+    }
+
+    camera = vsg::Camera::create(perspective, lookAt, vsg::ViewportState::create(VkExtent2D{width, height}));
 
     m_trackball = vsg::Trackball::create(camera, ellipsoidModel);
     m_trackball->addWindow(*window);
@@ -233,6 +233,8 @@ vsgQt::Window* Widget3D::createWindow(
     m_commandGraph->addChild(renderGraph);
 
     m_viewer->addRecordAndSubmitTaskAndPresentation({m_commandGraph});
+
+    m_trackball->setViewpoint(lookAt, 0.5);
 
     return window;
 }
